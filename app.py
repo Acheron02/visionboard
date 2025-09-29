@@ -7,6 +7,8 @@ from pages.about import About
 from pages.defecta import DefectA
 from pages.defectb import DefectB
 from pages.components import Components
+from pages.results import DefectResult
+from pages.loading import LoadingPage   # ✅ Added import
 
 
 class VisionBoard(tk.Tk):
@@ -51,7 +53,11 @@ class VisionBoard(tk.Tk):
 
         # === INITIALIZE PAGES ===
         self.frames = {}
-        for F in (Home, About, Register, Profile, DefectA, DefectB, Components):
+        for F in (
+            Home, About, Register, Profile,
+            DefectA, DefectB, Components,
+            DefectResult, LoadingPage  # ✅ Added LoadingPage
+        ):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
@@ -84,14 +90,17 @@ class VisionBoard(tk.Tk):
     def show_frame(self, page_name):
         """Raise the page and update nav active style."""
         for f in self.frames.values():
-                if hasattr(f, "on_hide"):
-                    f.on_hide()
+            if hasattr(f, "on_hide"):
+                f.on_hide()
 
         frame = self.frames[page_name]
+
+        # reset logic for special pages
         if page_name == "Register":
             frame.reset_fields()
         if page_name == "Profile":
             frame.update_profile_info()
+
         frame.tkraise()
         self._update_nav_active(page_name)
 
@@ -99,11 +108,15 @@ class VisionBoard(tk.Tk):
         """Highlight the active page with color and underline."""
         for page, lbl in self.nav_labels.items():
             if page == active_page:
-                lbl.config(font=("Helvetica", 12, "bold", "underline"),
-                           fg=self.nav_color_active)
+                lbl.config(
+                    font=("Helvetica", 12, "bold", "underline"),
+                    fg=self.nav_color_active
+                )
             else:
-                lbl.config(font=("Helvetica", 12, "bold"),
-                           fg=self.nav_color_default)
+                lbl.config(
+                    font=("Helvetica", 12, "bold"),
+                    fg=self.nav_color_default
+                )
 
     def _show_home_or_profile(self):
         """Go to Profile if logged in, else Home (with login form)."""

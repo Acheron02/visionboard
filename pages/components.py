@@ -106,10 +106,18 @@ class Components(tk.Frame):
         if self.cap is None:
             self.cap = cv2.VideoCapture(0)
 
-        # Change button text to "Capture Image"
+            # ✅ Check if camera opened successfully
+            if not self.cap.isOpened():
+                self.cap.release()
+                self.cap = None
+                messagebox.showerror("Camera Error", "No camera detected. Please connect a camera.")
+                return
+
+        # Change "Open Camera" button to "Capture Image"
         self.open_btn.config(text="Capture Image", command=self.capture_image)
 
         self.update_frame()
+
 
     def update_frame(self):
         """Continuously update camera frames."""
