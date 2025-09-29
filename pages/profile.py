@@ -29,9 +29,9 @@ class Profile(tk.Frame):
             self.nav_links[text] = lbl
 
         # Create nav items (but don’t pack navbar until login)
-        make_nav("Defect A", "DefectA")
-        make_nav("Defect B", "DefectB")
-        make_nav("Components", "Components")
+        make_nav("Defect Group A", "DefectA")
+        make_nav("Defect Group B", "DefectB")
+        make_nav("Components Detection", "Components")
 
         # === PAGE HEADER ===
         self.header_label = tk.Label(

@@ -83,6 +83,10 @@ class VisionBoard(tk.Tk):
 
     def show_frame(self, page_name):
         """Raise the page and update nav active style."""
+        for f in self.frames.values():
+                if hasattr(f, "on_hide"):
+                    f.on_hide()
+
         frame = self.frames[page_name]
         if page_name == "Register":
             frame.reset_fields()
