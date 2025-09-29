@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 
 class Home(tk.Frame):
     def __init__(self, parent, controller):
@@ -28,25 +29,35 @@ class Home(tk.Frame):
         form_frame = tk.Frame(self, bg="#1E1E2F")
         form_frame.pack(pady=20)
 
-        # Username/Email label on top
+        # Username/Email entry
         tk.Label(form_frame, text="Username/Email", font=("Helvetica", 12),
                  bg="#1E1E2F", fg="white", anchor="w").pack(anchor="w", pady=(0, 2))
-        username_entry = tk.Entry(form_frame, font=("Helvetica", 12), width=30,
-                                  bg="#2C2C3E", fg="white", insertbackground="white", relief="flat")
-        username_entry.pack(pady=(0, 10), ipady=5)
+        self.username_entry = tk.Entry(form_frame, font=("Helvetica", 12), width=30,
+                                       bg="#2C2C3E", fg="white", insertbackground="white", relief="flat")
+        self.username_entry.pack(pady=(0, 10), ipady=5)
 
-        # Password label on top
+        # Password entry
         tk.Label(form_frame, text="Password", font=("Helvetica", 12),
                  bg="#1E1E2F", fg="white", anchor="w").pack(anchor="w", pady=(0, 2))
-        password_entry = tk.Entry(form_frame, font=("Helvetica", 12), width=30, show="*",
-                                  bg="#2C2C3E", fg="white", insertbackground="white", relief="flat")
-        password_entry.pack(pady=(0, 20), ipady=5)
+        self.password_entry = tk.Entry(form_frame, font=("Helvetica", 12), width=30, show="*",
+                                       bg="#2C2C3E", fg="white", insertbackground="white", relief="flat")
+        self.password_entry.pack(pady=(0, 20), ipady=5)
 
         # === LOGIN FUNCTION ===
         def login_action(event=None):
-            controller.show_frame("Profile")
+            identifier = self.username_entry.get().strip()
+            password = self.password_entry.get().strip()
 
-        # === LOGIN BUTTON (centered) ===
+            if not identifier or not password:
+                messagebox.showerror("Error", "Please enter both username/email and password.")
+                return
+
+            if controller.auth.login(identifier, password):
+                controller.show_frame("Profile")
+            else:
+                messagebox.showerror("Login Failed", "Invalid username/email or password.")
+
+        # === LOGIN BUTTON ===
         login_btn = tk.Button(
             self,
             text="Login",
@@ -61,7 +72,7 @@ class Home(tk.Frame):
         # Bind Enter key
         self.bind_all("<Return>", login_action)
 
-        # === REGISTER LINK (centered under button) ===
+        # === REGISTER LINK ===
         link_frame = tk.Frame(self, bg="#1E1E2F")
         link_frame.pack()
 

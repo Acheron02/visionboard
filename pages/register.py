@@ -42,6 +42,13 @@ class Register(tk.Frame):
         input_width = 30
         input_ipady = 7  # vertical height
 
+        # Username label and entry
+        tk.Label(form_frame, text="Username", font=("Helvetica", 12),
+                 bg="#1E1E2F", fg="white", anchor="w").pack(anchor="w", pady=(0, 2))
+        self.username_entry = tk.Entry(form_frame, font=("Helvetica", 12), width=input_width,
+                                       bg="#2C2C3E", fg="white", insertbackground="white", relief="flat")
+        self.username_entry.pack(pady=(0, 10), ipady=input_ipady)
+
         # Email label and entry
         tk.Label(form_frame, text="Email", font=("Helvetica", 12),
                  bg="#1E1E2F", fg="white", anchor="w").pack(anchor="w", pady=(0, 2))
@@ -60,7 +67,7 @@ class Register(tk.Frame):
         tk.Label(form_frame, text="User Type", font=("Helvetica", 12),
                 bg="#1E1E2F", fg="white", anchor="w").pack(anchor="w", pady=(0, 2))
 
-        # Dropdown frame to control height and width
+        # Dropdown frame
         dropdown_frame = tk.Frame(form_frame, bg="#2C2C3E", width=input_width)
         dropdown_frame.pack(pady=(0, 20))
 
@@ -73,7 +80,7 @@ class Register(tk.Frame):
             font=("Helvetica", 12),
             relief="flat",
             bd=0,
-            highlightthickness=0,  # removes white/focus border
+            highlightthickness=0,
             width=input_width-4,
             anchor="w"
         )
@@ -113,15 +120,17 @@ class Register(tk.Frame):
 
     # === REGISTER LOGIC ===
     def attempt_register(self):
+        username = self.username_entry.get()
         email = self.email_entry.get()
         password = self.password_entry.get()
         user_type = self.user_type_var.get()
 
-        if not email or not password or user_type == "---":
+        if not username or not email or not password or user_type == "Role":
             self.message_label.config(text="All fields are required.", fg="red")
             return
 
-        success, message = self.controller.auth.register(email, password, user_type)
+        # ✅ Pass username into auth.register
+        success, message = self.controller.auth.register(username, email, password, user_type)
         if success:
             self.message_label.config(text=message, fg="green")
             self.controller.show_frame("Home")
@@ -129,6 +138,7 @@ class Register(tk.Frame):
             self.message_label.config(text=message, fg="red")
 
     def reset_fields(self):
+        self.username_entry.delete(0, tk.END)
         self.email_entry.delete(0, tk.END)
         self.password_entry.delete(0, tk.END)
         self.user_type_var.set("Role")
