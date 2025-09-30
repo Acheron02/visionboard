@@ -14,7 +14,7 @@ def analyze_image(image_path: str, save_dir: str = "processed_results"):
     os.makedirs(save_dir, exist_ok=True)
 
     # Run YOLO
-    results = model.predict(image_path, conf=0.5, imgsz=320, verbose=False)
+    results = model.predict(image_path, conf=0.25, imgsz=320, verbose=False)
 
     if not results:
         raise ValueError("No results returned by YOLO.")

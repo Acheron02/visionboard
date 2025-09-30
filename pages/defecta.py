@@ -5,16 +5,20 @@ import cv2
 import os
 import time
 import json
+import threading
+import numpy as np
+from typing import Optional
 from predict import analyze_image  # Your YOLO analyze_image function
 
 # ==================== DefectA Page ====================
 class DefectA(tk.Frame):
-    def __init__(self, parent, controller):
+    def __init__(self, parent: tk.Widget, controller):
         super().__init__(parent, bg="#02517F")
         self.controller = controller
-        self.cap = None
-        self.current_frame = None
-        self.imgtk = None  # Keep reference to avoid GC
+
+        self.cap: Optional[cv2.VideoCapture] = None
+        self.current_frame: Optional[np.ndarray] = None
+        self.imgtk: Optional[ImageTk.PhotoImage] = None
 
         # Screen dimensions
         self.screen_w = self.winfo_screenwidth()
@@ -36,7 +40,7 @@ class DefectA(tk.Frame):
         nav_center = tk.Frame(navbar, bg="#013B5C")
         nav_center.pack(expand=True)
 
-        def make_nav(text, target_page):
+        def make_nav(text: str, target_page: str):
             lbl = tk.Label(
                 nav_center, text=text, font=("Arial", 14, "bold"),
                 fg="white", bg="#013B5C", cursor="hand2", padx=20, pady=10
@@ -76,9 +80,13 @@ class DefectA(tk.Frame):
         self.capture_btn.pack(side="left", padx=10)
 
     # ---------------- Camera Methods ----------------
-    def start_camera(self):
+    def start_camera(self) -> None:
         if self.cap is None:
             self.cap = cv2.VideoCapture(0)
+            # Reduce resolution for speed
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
             if not self.cap.isOpened():
                 messagebox.showerror("Camera Error", "No camera detected.")
                 self.cap = None
@@ -88,17 +96,17 @@ class DefectA(tk.Frame):
             self.open_btn.config(text="Close Camera", command=self.stop_camera)
             self.update_frame()
 
-    def update_frame(self):
+    def update_frame(self) -> None:
         if self.cap and self.cap.isOpened():
             ret, frame = self.cap.read()
-            if ret:
+            if ret and frame is not None:
                 self.current_frame = frame.copy()
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                # Maintain aspect ratio
+                # Resize for display only
                 h, w, _ = frame_rgb.shape
                 aspect_ratio = w / h
-                new_h = self.cam_h
+                new_h = min(self.cam_h, h)
                 new_w = int(new_h * aspect_ratio)
                 if new_w > self.cam_w:
                     new_w = self.cam_w
@@ -109,10 +117,21 @@ class DefectA(tk.Frame):
                 self.imgtk = ImageTk.PhotoImage(img)
                 self.video_label.config(image=self.imgtk)
 
-            self.after(33, self.update_frame)
+            self.after(30, self.update_frame)  # ~30 FPS
 
-    def capture_image(self):
+    def capture_image(self) -> None:
         if self.current_frame is not None:
+            # Run analysis in background thread
+            threading.Thread(target=self._analyze_image_thread, daemon=True).start()
+        else:
+            messagebox.showerror("Error", "No frame captured.")
+
+    def _analyze_image_thread(self) -> None:
+        frame = self.current_frame
+        if frame is None:
+            return
+
+        try:
             # Save original image
             save_dir = "captured_images/defectA"
             os.makedirs(save_dir, exist_ok=True)
@@ -120,30 +139,32 @@ class DefectA(tk.Frame):
             timestamp = int(time.time())
             filename = f"{username}_{timestamp}.jpg"
             filepath = os.path.join(save_dir, filename)
-            cv2.imwrite(filepath, self.current_frame)
 
-            try:
-                # Run YOLO analyze_image
-                processed_path, summary = analyze_image(filepath)
+            # Resize for YOLO speed
+            small_img = cv2.resize(frame, (640, 480))
+            cv2.imwrite(filepath, small_img)
 
-                # Save summary to JSON
-                summary_dir = "processed_results/defectA"
-                os.makedirs(summary_dir, exist_ok=True)
-                summary_path = os.path.join(summary_dir, f"summary_{filename}.json")
-                with open(summary_path, "w") as f:
-                    json.dump(summary["detections"], f)
+            # Run YOLO analyze_image
+            processed_path, summary = analyze_image(filepath)
 
-                # Pass paths to results page
-                result_page = self.controller.frames["DefectResult"]
-                result_page.set_paths(processed_path, summary_path)
+            # Save summary to JSON
+            summary_dir = "processed_results/defectA"
+            os.makedirs(summary_dir, exist_ok=True)
+            summary_path = os.path.join(summary_dir, f"summary_{filename}.json")
+            with open(summary_path, "w") as f:
+                json.dump(summary["detections"], f)
 
-                # Switch to results page
-                self.controller.show_frame("DefectResult")
+            # Pass paths to results page
+            result_page = self.controller.frames["DefectResult"]
+            result_page.set_paths(processed_path, summary_path)
 
-            except Exception as e:
-                messagebox.showerror("Prediction Error", f"Failed to analyze image:\n{e}")
+            # Switch to results page
+            self.controller.show_frame("DefectResult")
 
-    def stop_camera(self):
+        except Exception as e:
+            messagebox.showerror("Prediction Error", f"Failed to analyze image:\n{e}")
+
+    def stop_camera(self) -> None:
         if self.cap:
             self.cap.release()
             self.cap = None
@@ -152,5 +173,5 @@ class DefectA(tk.Frame):
         self.open_btn.config(text="Open Camera", command=self.start_camera)
         self.capture_btn.config(state="disabled")
 
-    def on_hide(self):
+    def on_hide(self) -> None:
         self.stop_camera()
