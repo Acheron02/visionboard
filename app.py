@@ -8,7 +8,7 @@ from pages.defecta import DefectA
 from pages.defectb import DefectB
 from pages.components import Components
 from pages.results import DefectResult
-from pages.loading import LoadingPage   # ✅ Added import
+from pages.loading import LoadingPage
 
 
 class VisionBoard(tk.Tk):
@@ -18,11 +18,11 @@ class VisionBoard(tk.Tk):
         self.title("VisionBoard")
         self.auth = AuthManager()
 
-        # === HEADER BAR (Modern Style) ===
+        # === HEADER BAR ===
         header_frame = tk.Frame(self, bg="#0D3E5B")
         header_frame.pack(side="top", fill="x")
 
-        # App title on the left
+        # App title
         title_label = tk.Label(
             header_frame,
             text="VISIONBOARD",
@@ -32,18 +32,14 @@ class VisionBoard(tk.Tk):
         )
         title_label.pack(side="left", padx=50, pady=10)
 
-        # Navigation links container centered
+        # Navigation container (center)
         self.nav_frame = tk.Frame(header_frame, bg="#0D3E5B")
         self.nav_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Nav state
+        # Navigation state
         self.nav_labels = {}
         self.nav_color_default = "white"
         self.nav_color_active = "#00FFFF"
-
-        # Only show these by default
-        self.create_nav_label("Home", "Home")
-        self.create_nav_label("About", "About")
 
         # === PAGE CONTAINER ===
         container = tk.Frame(self)
@@ -56,17 +52,22 @@ class VisionBoard(tk.Tk):
         for F in (
             Home, About, Register, Profile,
             DefectA, DefectB, Components,
-            DefectResult, LoadingPage  # ✅ Added LoadingPage
+            DefectResult, LoadingPage
         ):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
+        # Setup initial navigation (before login → Home + About)
+        self.rebuild_nav([("Home", "Home"), ("About", "About")])
+
+        # Start at Home
         self.show_frame("Home")
 
+    # ---------------- NAV HELPERS ----------------
     def create_nav_label(self, text, page_name):
-        """Create and store nav label in header nav frame."""
+        """Create and store a single nav label in nav_frame."""
         lbl = tk.Label(
             self.nav_frame,
             text=text,
@@ -80,47 +81,68 @@ class VisionBoard(tk.Tk):
         self.nav_labels[page_name] = lbl
         return lbl
 
-    def enable_post_login_nav(self):
-        """Show Defect A, Defect B, Components nav links after login."""
-        if "DefectA" not in self.nav_labels:
-            self.create_nav_label("Defect A", "DefectA")
-            self.create_nav_label("Defect B", "DefectB")
-            self.create_nav_label("Components", "Components")
+    def rebuild_nav(self, items):
+        """Rebuild the top navigation bar with given items."""
+        for lbl in list(self.nav_labels.values()):
+            try:
+                lbl.destroy()
+            except Exception:
+                pass
+        self.nav_labels.clear()
 
+        for text, page_name in items:
+            self.create_nav_label(text, page_name)
+
+        # Highlight current page if it exists
+        cur = None
+        for page in self.frames:
+            if self.frames[page].winfo_ismapped():
+                cur = page
+                break
+        if cur:
+            self._update_nav_active(cur)
+
+    def enable_post_login_nav(self):
+        """After login → Profile + About"""
+        self.rebuild_nav([("Profile", "Profile"), ("About", "About")])
+        self.show_frame("Profile")
+
+    def disable_post_logout_nav(self):
+        """After logout → Home + About"""
+        self.rebuild_nav([("Home", "Home"), ("About", "About")])
+        self.show_frame("Home")
+
+    # ---------------- PAGE NAVIGATION ----------------
     def show_frame(self, page_name):
-        """Raise the page and update nav active style."""
+        """Raise the page and call lifecycle hooks."""
         for f in self.frames.values():
             if hasattr(f, "on_hide"):
-                f.on_hide()
+                try:
+                    f.on_hide()
+                except Exception:
+                    pass
 
         frame = self.frames[page_name]
 
-        # reset logic for special pages
-        if page_name == "Register":
+        if page_name == "Register" and hasattr(frame, "reset_fields"):
             frame.reset_fields()
-        if page_name == "Profile":
+        if page_name == "Profile" and hasattr(frame, "update_profile_info"):
             frame.update_profile_info()
+        if hasattr(frame, "on_show"):
+            frame.on_show()
 
         frame.tkraise()
         self._update_nav_active(page_name)
 
     def _update_nav_active(self, active_page):
-        """Highlight the active page with color and underline."""
-        for page, lbl in self.nav_labels.items():
-            if page == active_page:
-                lbl.config(
-                    font=("Helvetica", 12, "bold", "underline"),
-                    fg=self.nav_color_active
-                )
-            else:
-                lbl.config(
-                    font=("Helvetica", 12, "bold"),
-                    fg=self.nav_color_default
-                )
-
-    def _show_home_or_profile(self):
-        """Go to Profile if logged in, else Home (with login form)."""
-        if self.auth.is_logged_in:
-            self.show_frame("Profile")
-        else:
-            self.show_frame("Home")
+        """Highlight the active nav link if present."""
+        for page, lbl in list(self.nav_labels.items()):
+            try:
+                if page == active_page:
+                    lbl.config(font=("Helvetica", 12, "bold", "underline"),
+                               fg=self.nav_color_active)
+                else:
+                    lbl.config(font=("Helvetica", 12, "bold"),
+                               fg=self.nav_color_default)
+            except Exception:
+                pass
